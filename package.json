@@ -1,0 +1,18 @@
+{
+  "name": "dust2less",
+  "version": "1.0.0",
+  "description": "extract the classtree from a html structured file to less",
+  "main": "html2less.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Oleg Kamlowski <n@sovrin.de>",
+  "license": "MIT",
+  "dependencies": {
+    "commander": "^2.11.0",
+    "cheerio": "^1.0.0-rc.2"
+  },
+  "bin": {
+    "html2less": "./html2less.js"
+  }
+}
