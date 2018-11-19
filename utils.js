@@ -1,77 +1,146 @@
-const $ = require('cheerio');
+const cheerio = require('cheerio');
+const {readFileSync, writeFileSync, existsSync} = require("fs");
 
-const self = module.exports = {
-    parse: (node, context) => {
-        node = $(node);
+/**
+ *
+ * @param file
+ * @param cli
+ */
+const run = (file, {output}) => {
 
-        const selector = self.selector(node);
+    if (!existsSync(file)) {
+        console.log('file does not exist: ' + file);
+        run.exit(1);
+    }
 
-        if (!selector) {
-            return;
+    const html = readFileSync(file);
+    const $ = cheerio.load(html);
+    const root = $('*').first();
+
+    const tree = parse(root, []);
+
+    const structure = print(tree)
+        .trim()
+    ;
+
+    if (output) {
+        if (output === true) {
+            output = file.substr(0, file.lastIndexOf('.')) + '.less';
         }
 
-        const children = node.children();
+        writeFileSync(output, structure, ((err) => {
+            if (err) return console.log(err);
 
-        if (!context[selector]) {
-            context[selector] = [];
-        }
-
-        if (children.length) {
-            for (let i = 0; i <= children.length; i++) {
-                self.parse(children[i], context[selector])
-            }
-        }
-
-        return context
-    },
-
-    print: (tree, level = 0) => {
-        let result = '';
-        level++;
-
-        const indent = [...Array(level)].join('\t');
-
-        let direct = (level !== 1)
-            ? '> '
-            : ''
-        ;
-
-        for (let key in tree) {
-            if (tree.hasOwnProperty(key)) {
-                result += '\n' + indent + direct + key + ' {' + self.print(tree[key], level) + '\n' + indent + '}';
-            }
-        }
-
-        return result;
-    },
-
-    selector: (node) => {
-        if (!node.length) {
-            return null;
-        }
-
-        if (node.attr('id')) {
-            return '#' + node
-                .attr('id')
-            ;
-        }
-
-        if (node.attr('class')) {
-            return '.' + node
-                .attr('class')
-                .split(' ')
-                .slice(0, 1)
-                .shift()
-            ;
-        }
-
-        if (node.prop("tagName")) {
-            return node
-                .prop("tagName")
-                .toLowerCase()
-            ;
-        }
-
-        return null;
+            console.log('Structure save to: ' + output);
+        }));
+    } else {
+        console.log(structure);
     }
 };
+
+/**
+ *
+ * @param node
+ * @param context
+ * @return {*}
+ */
+const parse = (node, context) => {
+    node = cheerio(node);
+
+    const selector = key(node);
+
+    if (!selector) {
+        return;
+    }
+
+    const children = node
+        .children()
+        .toArray()
+    ;
+
+    if (!context[selector]) {
+        context[selector] = [];
+    }
+
+    while(children.length) {
+        const child = children.shift();
+        parse(child, context[selector]);
+    }
+
+    return context;
+};
+
+/**
+ *
+ * @param tree
+ * @param level
+ * @return {string}
+ */
+const print = (tree, level = 0) => {
+    let result = '';
+    level++;
+
+    const indent = [...Array(level)].join('\t');
+
+    let direct = (level !== 1)
+        ? '> '
+        : ''
+    ;
+
+    if (!tree) {
+        return '';
+    }
+
+    let spacer = false;
+
+    for (let key in tree) {
+        if (spacer) {
+            result += `${'\n'}`;
+        }
+
+        if (tree.hasOwnProperty(key)) {
+            result += `${'\n'}${indent}${direct}${key} {${print(tree[key], level)}${'\n'}${indent}}`;
+        }
+
+        spacer = true;
+    }
+
+    return result;
+};
+
+/**
+ *
+ * @param node
+ * @return {*}
+ */
+const key = (node) => {
+    if (!node.length) {
+        return null;
+    }
+
+    if (node.attr('id')) {
+        return '#' + node
+            .attr('id')
+        ;
+    }
+
+    if (node.attr('class')) {
+        return '.' + node
+            .attr('class')
+            .split(' ')
+            .slice(0, 1)
+            .shift()
+        ;
+    }
+
+    if (node.prop('tagName')) {
+        return node
+            .prop('tagName')
+            .toLowerCase()
+        ;
+    }
+
+    return null;
+};
+
+module.exports = {run};
